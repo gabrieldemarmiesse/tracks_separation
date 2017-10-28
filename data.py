@@ -10,7 +10,7 @@ from random import randint
 def preprocess(filename):
     base_array = read(filename)[1].astype(np.float64)
     array = (base_array[:, 0] + base_array[:, 1])[:, np.newaxis]
-    array /= (2 ** 14)
+    array /= (2 ** 15)
     np.clip(array, -1, 1, array)
     return array.astype(np.float32)
 
@@ -30,11 +30,17 @@ def mix_tracks(list_arrays):
 
 
 def get_instru_voice(directory):
-    bass_array = preprocess(join(directory, "bass.wav"))
-    drums_array = preprocess(join(directory, "drums.wav"))
-    other_array = preprocess(join(directory, "other.wav"))
+    file_instru = join(directory, "instru.wav")
+    try:
+        instru_array = preprocess(file_instru)
+    except FileNotFoundError:
+        bass_array = preprocess(join(directory, "bass.wav"))
+        drums_array = preprocess(join(directory, "drums.wav"))
+        other_array = preprocess(join(directory, "other.wav"))
+        instru_array = mix_tracks([bass_array, drums_array, other_array])
+        print(file_instru, "not found. Creating it now.")
+        postprocess(instru_array, file_instru)
     vocals_array = preprocess(join(directory, "vocals.wav"))
-    instru_array = mix_tracks([bass_array, drums_array, other_array])
     return instru_array, vocals_array
 
 
@@ -114,7 +120,7 @@ class Data:
                 voice_array[i] = list_tracks[idx][1][start_seq + self.padding: start_seq + size_seq - self.padding]
 
             if first:
-                print("Size of the mix array: %.2f Go" % (mix_array.nbytes / (2 ** 30)))
+                print("Size of the mix array: %.2f Mo" % (mix_array.nbytes / (2 ** 20)))
                 first = False
 
             yield mix_array, voice_array
