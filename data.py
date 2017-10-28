@@ -51,7 +51,7 @@ class Data:
             self.training_set = []
             for folder in tq(glob(dir + "Dev/*/")):
                 self.training_set.append(get_instru_voice(folder))
-            pickle.dump(self.training_set, open(pickle_file, "wb"))
+            pickle.dump(self.training_set, open(pickle_file, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
         pickle_file = cache_dir + "val.p"
         try:
@@ -60,7 +60,7 @@ class Data:
             self.validation_set = []
             for folder in tq(glob(dir + "Test/*/")):
                 self.validation_set.append(get_instru_voice(folder))
-            pickle.dump(self.validation_set, open(pickle_file, "wb"))
+            pickle.dump(self.validation_set, open(pickle_file, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
         if model is None:
             self.padding = 0
