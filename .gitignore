@@ -24,6 +24,7 @@ wheels/
 .idea/
 .ipynb_checkpoints/
 data/
+logs/
 checks/
 *.egg-info/
 .installed.cfg

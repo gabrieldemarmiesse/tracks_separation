@@ -15,9 +15,7 @@ def add_centered(list_of_tensors):
 
     for tensor in list_of_tensors[:-1]:
         diff = K.shape(tensor)[1] - smallest_shape
-        print(K.dtype(diff))
         pad = diff // cst_2
-        print(K.dtype(pad))
         result += tensor[:, pad:-pad, :]
 
     return result
@@ -37,7 +35,7 @@ def apply_conv(x, dilatation_rate, filters, padding="valid"):
 
 
 def residual_block(x, dilatation_rate, filters, padding="valid"):
-    out_act = apply_conv(x, dilatation_rate)
+    out_act = apply_conv(x, dilatation_rate, filters)
 
     res_x = Conv1D(filters, 1, padding=padding)(out_act)
     res_x = Lambda(add_centered, lambda x: x[-1])([x, res_x])

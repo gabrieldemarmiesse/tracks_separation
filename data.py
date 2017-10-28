@@ -5,6 +5,7 @@ from os.path import join
 from tqdm import tqdm as tq
 from utils import *
 from random import randint
+import pickle
 
 
 def preprocess(filename):
@@ -30,16 +31,10 @@ def mix_tracks(list_arrays):
 
 
 def get_instru_voice(directory):
-    file_instru = join(directory, "instru.wav")
-    try:
-        instru_array = preprocess(file_instru)
-    except FileNotFoundError:
-        bass_array = preprocess(join(directory, "bass.wav"))
-        drums_array = preprocess(join(directory, "drums.wav"))
-        other_array = preprocess(join(directory, "other.wav"))
-        instru_array = mix_tracks([bass_array, drums_array, other_array])
-        print(file_instru, "not found. Creating it now.")
-        postprocess(instru_array, file_instru)
+    bass_array = preprocess(join(directory, "bass.wav"))
+    drums_array = preprocess(join(directory, "drums.wav"))
+    other_array = preprocess(join(directory, "other.wav"))
+    instru_array = mix_tracks([bass_array, drums_array, other_array])
     vocals_array = preprocess(join(directory, "vocals.wav"))
     return instru_array, vocals_array
 
@@ -47,14 +42,25 @@ def get_instru_voice(directory):
 class Data:
     def __init__(self, dir="./data/DSD100_16kHz/Sources/", model=None):
         print("init")
-        self.training_set = []
-        self.validation_set = []
+        cache_dir = "./data/cache/"
+        mk(cache_dir)
+        pickle_file = cache_dir + "train.p"
+        try:
+            self.training_set = pickle.load(open(pickle_file, "rb"))
+        except FileNotFoundError:
+            self.training_set = []
+            for folder in tq(glob(dir + "Dev/*/")):
+                self.training_set.append(get_instru_voice(folder))
+            pickle.dump(self.training_set, open(pickle_file, "wb"))
 
-        for folder in tq(glob(dir + "Dev/*/")):
-            self.training_set.append(get_instru_voice(folder))
-
-        for folder in tq(glob(dir + "Test/*/")):
-            self.validation_set.append(get_instru_voice(folder))
+        pickle_file = cache_dir + "val.p"
+        try:
+            self.validation_set = pickle.load(open(pickle_file, "rb"))
+        except FileNotFoundError:
+            self.validation_set = []
+            for folder in tq(glob(dir + "Test/*/")):
+                self.validation_set.append(get_instru_voice(folder))
+            pickle.dump(self.validation_set, open(pickle_file, "wb"))
 
         if model is None:
             self.padding = 0
@@ -62,7 +68,7 @@ class Data:
         else:
             dummy_array = np.zeros((1, 100000, 1))
             output_size = model.predict(dummy_array).shape[1]
-            self.padding = output_size // 2
+            self.padding = (dummy_array.shape[1] - output_size) // 2
             assert output_size % 2 == 0
             print("Padding found:", self.padding)
 
