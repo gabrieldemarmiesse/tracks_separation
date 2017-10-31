@@ -40,7 +40,7 @@ def get_instru_voice(directory):
 
 
 class Data:
-    def __init__(self, dir="./data/DSD100_16kHz/Sources/", model=None):
+    def __init__(self, dir="./data/DSD100_16kHz/Sources/", padding=0):
         print("init")
         cache_dir = "./data/cache/"
         mk(cache_dir)
@@ -62,15 +62,7 @@ class Data:
                 self.validation_set.append(get_instru_voice(folder))
             pickle.dump(self.validation_set, open(pickle_file, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
-        if model is None:
-            self.padding = 0
-            print("No model was given, the padding is set to 0.")
-        else:
-            dummy_array = np.zeros((1, 100000, 1))
-            output_size = model.predict(dummy_array).shape[1]
-            self.padding = (dummy_array.shape[1] - output_size) // 2
-            assert output_size % 2 == 0
-            print("Padding found:", self.padding)
+        self.padding = padding
 
         self.sanity_check()
 
@@ -92,12 +84,12 @@ class Data:
         print("lenght of training set:", len(self.training_set))
         print("lenght of validation set:", len(self.validation_set))
 
-        mix, voice = next(self.training_generator(32, 20000))
+        mix, voice = next(self.training_generator(8, 20000))
         for i in range(mix.shape[0]):
             postprocess(mix[i], dir_checks + "batch_train_" + str(i) + "_mix.wav")
             postprocess(voice[i], dir_checks + "batch_train_" + str(i) + "_voice.wav")
 
-        mix, voice = next(self.validation_generator(32, 20000))
+        mix, voice = next(self.validation_generator(8, 20000))
         for i in range(mix.shape[0]):
             postprocess(mix[-1], dir_checks + "batch_val_" + str(i) + "_mix.wav")
             postprocess(voice[-1], dir_checks + "batch_val_" + str(i) + "_voice.wav")
@@ -112,13 +104,12 @@ class Data:
         first = True
 
         while 1:
-            end = min((start + batch_size, len(list_tracks)))
-            current_bs = end - start
-            mix_array = np.zeros((current_bs, size_seq, 1))
-            voice_array = np.zeros((current_bs, size_seq - 2 * self.padding, 1))
+            end = start + batch_size
+            mix_array = np.zeros((batch_size, size_seq, 1))
+            voice_array = np.zeros((batch_size, size_seq - 2 * self.padding, 1))
 
-            for i in range(current_bs):
-                idx = indices[start + i]
+            for i in range(batch_size):
+                idx = indices[(start + i) % len(indices)]
                 max_start = list_tracks[idx][0].shape[0] - size_seq
                 start_seq = randint(0, max_start)
                 mix_array[i] = mix_tracks([list_tracks[idx][0][start_seq: start_seq + size_seq],
@@ -131,10 +122,7 @@ class Data:
 
             yield mix_array, voice_array
 
-            if end == len(list_tracks):
-                start = 0
-            else:
-                start = end
+            start = end % len(indices)
 
     def training_generator(self, batch_size, size_sequence):
         return self.make_generator(self.training_set, batch_size, size_sequence)
